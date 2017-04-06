@@ -189,6 +189,7 @@ end
 local MAGIC_TRY = 3
 local DEFUALT_KEEPALIVE_TIMEOUT = 1000
 local DEFAULT_KEEPALIVE_CONS = 200
+local DEFAULT_CONNECT_TIMEOUT = 10
 
 local function _do_cmd(self, cmd, key, ...)
     if self._reqs then
@@ -201,6 +202,8 @@ local function _do_cmd(self, cmd, key, ...)
 
     key = tostring(key)
     local slot = redis_slot(key)
+	local redis_client = redis:new() 
+	redis_client:set_timeout(config.connect_timeout or DEFAULT_CONNECT_TIMEOUT)
 
     for k=1, MAGIC_TRY do
         local slots = slot_cache[self.config.name]
@@ -209,18 +212,16 @@ local function _do_cmd(self, cmd, key, ...)
         for i=1,#serv_list do
             local ip = serv_list[index].ip
             local port = serv_list[index].port
-            local redis_client = redis:new()
-			redis_client:set_timeout(config.timeout or 1000) --in ms
             local ok, err = redis_client:connect(ip_string(ip), port)
             if ok then
                 slots[slot].cur = index
                 local res, err = redis_client[cmd](redis_client, key, ...)
-                redis_client:set_keepalive(config.keepalive_timeout or DEFUALT_KEEPALIVE_TIMEOUT,
-                                           config.keepalove_cons or DEFAULT_KEEPALIVE_CONS)
                 if err and string.sub(err, 1, 5) == "MOVED" then
                     self:fetch_slots()
                     break
                 end
+                redis_client:set_keepalive(config.keepalive_timeout or DEFUALT_KEEPALIVE_TIMEOUT,
+                                           config.keepalove_cons or DEFAULT_KEEPALIVE_CONS)
                 return res, err
             else
                 index = next_index(index, #serv_list)
