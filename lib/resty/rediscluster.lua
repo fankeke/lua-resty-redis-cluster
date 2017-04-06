@@ -210,6 +210,7 @@ local function _do_cmd(self, cmd, key, ...)
             local ip = serv_list[index].ip
             local port = serv_list[index].port
             local redis_client = redis:new()
+			redis_client:set_timeout(config.timeout or 1000) --in ms
             local ok, err = redis_client:connect(ip_string(ip), port)
             if ok then
                 slots[slot].cur = index
